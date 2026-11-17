@@ -1,0 +1,259 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>XOX</title>
+
+<style>
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: #050505;
+  color: white;
+  font-family: Arial, sans-serif;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+}
+
+.container {
+  width: 100%;
+  max-width: 420px;
+  padding: 20px;
+}
+
+h1 {
+  font-size: 48px;
+  letter-spacing: 8px;
+  margin-bottom: 8px;
+}
+
+.subtitle {
+  color: #888;
+  margin-bottom: 25px;
+}
+
+.scores {
+  display: flex;
+  justify-content: space-around;
+  margin-bottom: 25px;
+  font-size: 18px;
+}
+
+.x-score { color: #63cfff; }
+.o-score { color: #ff42c8; }
+
+.board {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin: auto;
+  width: 100%;
+  aspect-ratio: 1;
+}
+
+.cell {
+  background: #101010;
+  border: 2px solid white;
+  border-radius: 12px;
+  font-size: clamp(45px, 15vw, 75px);
+  font-weight: bold;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.cell.x { color: #63cfff; }
+.cell.o { color: #ff42c8; }
+
+#message {
+  min-height: 50px;
+  margin: 22px 0;
+  font-size: 18px;
+}
+
+button {
+  background: white;
+  color: black;
+  border: none;
+  border-radius: 9px;
+  padding: 14px 25px;
+  font-size: 16px;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+button:active {
+  transform: scale(.96);
+}
+</style>
+</head>
+
+<body>
+<div class="container">
+  <h1>XOX</h1>
+  <div class="subtitle">YOU vs THE BOT</div>
+
+  <div class="scores">
+    <div class="x-score">YOU: <span id="youScore">0</span></div>
+    <div class="o-score">BOT: <span id="botScore">0</span></div>
+  </div>
+
+  <div class="board" id="board"></div>
+
+  <div id="message">Your move. Try not to embarrass yourself.</div>
+  <button onclick="restart()">PLAY AGAIN</button>
+</div>
+
+<script>
+const board = document.getElementById("board");
+const message = document.getElementById("message");
+
+let cells = Array(9).fill("");
+let gameOver = false;
+let youScore = 0;
+let botScore = 0;
+
+const trashTalk = [
+  "That was your move? 😭",
+  "I'm literally a bunch of code.",
+  "You're making this too easy.",
+  "Bro please try harder.",
+  "I saw that coming.",
+  "You call that strategy?",
+  "My toaster could beat you."
+];
+
+const winLines = [
+  [0,1,2], [3,4,5], [6,7,8],
+  [0,3,6], [1,4,7], [2,5,8],
+  [0,4,8], [2,4,6]
+];
+
+function render() {
+  board.innerHTML = "";
+
+  cells.forEach((value, i) => {
+    const cell = document.createElement("div");
+    cell.className = "cell " + value.toLowerCase();
+    cell.textContent = value;
+    cell.onclick = () => playerMove(i);
+    board.appendChild(cell);
+  });
+}
+
+function getWinner(b) {
+  for (const line of winLines) {
+    const [a, c, d] = line;
+    if (b[a] && b[a] === b[c] && b[a] === b[d]) {
+      return b[a];
+    }
+  }
+  return null;
+}
+
+function playerMove(i) {
+  if (gameOver || cells[i]) return;
+
+  cells[i] = "X";
+  render();
+
+  if (checkEnd()) return;
+
+  message.textContent = "Bot is thinking...";
+  setTimeout(botMove, 450);
+}
+
+function findWinningMove(player) {
+  for (let i = 0; i < 9; i++) {
+    if (!cells[i]) {
+      const test = [...cells];
+      test[i] = player;
+      if (getWinner(test) === player) return i;
+    }
+  }
+  return null;
+}
+
+function botMove() {
+  if (gameOver) return;
+
+  let move = findWinningMove("O");
+
+  if (move === null) move = findWinningMove("X");
+
+  if (move === null && !cells[4]) move = 4;
+
+  if (move === null) {
+    const corners = [0, 2, 6, 8].filter(i => !cells[i]);
+    if (corners.length) {
+      move = corners[Math.floor(Math.random() * corners.length)];
+    }
+  }
+
+  if (move === null) {
+    const empty = cells.map((v, i) => v ? null : i).filter(v => v !== null);
+    if (empty.length) {
+      move = empty[Math.floor(Math.random() * empty.length)];
+    }
+  }
+
+  if (move !== undefined && move !== null) {
+    cells[move] = "O";
+  }
+
+  render();
+
+  if (!checkEnd()) {
+    message.textContent =
+      trashTalk[Math.floor(Math.random() * trashTalk.length)];
+  }
+}
+
+function checkEnd() {
+  const winner = getWinner(cells);
+
+  if (winner === "X") {
+    youScore++;
+    document.getElementById("youScore").textContent = youScore;
+    message.textContent = "YOU WON?! Okay lucky shot.";
+    gameOver = true;
+    return true;
+  }
+
+  if (winner === "O") {
+    botScore++;
+    document.getElementById("botScore").textContent = botScore;
+    message.textContent = "BOT WINS. Sit down bro.";
+    gameOver = true;
+    return true;
+  }
+
+  if (cells.every(Boolean)) {
+    message.textContent = "DRAW. Nobody wins.";
+    gameOver = true;
+    return true;
+  }
+
+  return false;
+}
+
+function restart() {
+  cells = Array(9).fill("");
+  gameOver = false;
+  message.textContent = "Your move. Try not to embarrass yourself.";
+  render();
+}
+
+render();
+</script>
+</body>
+</html>
